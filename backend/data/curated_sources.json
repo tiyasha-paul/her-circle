@@ -1,0 +1,92 @@
+[
+  {
+    "source": "Office on Women's Health",
+    "title": "Menstrual Cycle",
+    "url": "https://womenshealth.gov/menstrual-cycle",
+    "topics": ["periods", "menstrual cycle", "bleeding"]
+  },
+  {
+    "source": "Office on Women's Health",
+    "title": "Your Menstrual Cycle",
+    "url": "https://womenshealth.gov/menstrual-cycle/your-menstrual-cycle",
+    "topics": ["periods", "menstrual cycle", "ovulation"]
+  },
+  {
+    "source": "Office on Women's Health",
+    "title": "Your Menstrual Cycle and Your Health",
+    "url": "https://womenshealth.gov/menstrual-cycle/your-menstrual-cycle-and-your-health",
+    "topics": ["periods", "menstrual cycle", "health"]
+  },
+  {
+    "source": "Office on Women's Health",
+    "title": "Premenstrual Dysphoric Disorder (PMDD)",
+    "url": "https://womenshealth.gov/menstrual-cycle/premenstrual-syndrome/premenstrual-dysphoric-disorder-pmdd",
+    "topics": ["pmdd", "pms", "hormones"]
+  },
+  {
+    "source": "Office on Women's Health",
+    "title": "Endometriosis",
+    "url": "https://womenshealth.gov/a-z-topics/endometriosis",
+    "topics": ["endometriosis", "pelvic pain"]
+  },
+  {
+    "source": "MedlinePlus",
+    "title": "Endometriosis",
+    "url": "https://medlineplus.gov/endometriosis.html",
+    "topics": ["endometriosis", "pelvic pain", "fertility"]
+  },
+  {
+    "source": "MedlinePlus",
+    "title": "Absent Menstrual Periods - Primary",
+    "url": "https://medlineplus.gov/ency/article/001218.htm",
+    "topics": ["late period", "missed period", "amenorrhea"]
+  },
+  {
+    "source": "ACOG",
+    "title": "Amenorrhea: Absence of Periods",
+    "url": "https://www.acog.org/womens-health/faqs/amenorrhea-absence-of-periods",
+    "topics": ["late period", "missed period", "amenorrhea"]
+  },
+  {
+    "source": "ACOG",
+    "title": "Endometriosis",
+    "url": "https://www.acog.org/womens-health/faqs/endometriosis",
+    "topics": ["endometriosis", "pelvic pain"]
+  },
+  {
+    "source": "ACOG",
+    "title": "5 Things You Need to Know About PCOS",
+    "url": "https://www.acog.org/womens-health/experts-and-stories/the-latest/5-things-you-need-to-know-about-pcos",
+    "topics": ["pcos", "ovulation", "missed period"]
+  },
+  {
+    "source": "Cleveland Clinic",
+    "title": "Amenorrhea: Types, Causes, Symptoms, Diagnosis & Treatment",
+    "url": "https://my.clevelandclinic.org/health/diseases/3924-amenorrhea",
+    "topics": ["late period", "missed period", "amenorrhea"]
+  },
+  {
+    "source": "Cleveland Clinic",
+    "title": "PCOS (Polycystic Ovary Syndrome): Symptoms & Treatment",
+    "url": "https://my.clevelandclinic.org/health/diseases/8316-polycystic-ovary-syndrome-pcos",
+    "topics": ["pcos", "hormones", "ovulation"]
+  },
+  {
+    "source": "Planned Parenthood",
+    "title": "Birth Control Methods & Options",
+    "url": "https://www.plannedparenthood.org/learn/birth-control",
+    "topics": ["birth control", "contraception"]
+  },
+  {
+    "source": "Planned Parenthood",
+    "title": "Birth Control Shot Side Effects",
+    "url": "https://www.plannedparenthood.org/learn/birth-control/birth-control-shot/birth-control-shot-side-effects",
+    "topics": ["birth control", "contraception", "side effects"]
+  },
+  {
+    "source": "Planned Parenthood",
+    "title": "Emergency Contraception",
+    "url": "https://www.plannedparenthood.org/learn/morning-after-pill-emergency-contraception",
+    "topics": ["emergency contraception", "morning-after pill", "pregnancy"]
+  }
+]

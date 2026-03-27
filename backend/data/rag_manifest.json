@@ -1,0 +1,194 @@
+{
+  "queries": [
+    "late period causes",
+    "period cramps severe pain",
+    "heavy menstrual bleeding clots",
+    "signs of pcos",
+    "endometriosis symptoms",
+    "what is pmdd",
+    "birth control side effects",
+    "ovulation and fertility signs",
+    "period rash irritation from pads",
+    "missed period pregnancy signs",
+    "how to make periods lighter safely",
+    "how to shorten periods safely",
+    "spotting after starting birth control",
+    "irregular periods stress hormones",
+    "fibroids heavy bleeding symptoms",
+    "when to seek care period pain",
+    "vaginal discharge normal vs infection",
+    "period clots when to worry"
+  ],
+  "include_live_discovery": false,
+  "document_count": 161,
+  "source_count": 12,
+  "sources": [
+    {
+      "source": "Office on Women's Health",
+      "title": "Menstrual Cycle",
+      "url": "https://womenshealth.gov/menstrual-cycle",
+      "chunks": 2,
+      "topics": [
+        "bleeding",
+        "contraception",
+        "endometriosis",
+        "fertility",
+        "menstrual cycle",
+        "periods",
+        "pmdd"
+      ]
+    },
+    {
+      "source": "Office on Women's Health",
+      "title": "Your Menstrual Cycle",
+      "url": "https://womenshealth.gov/menstrual-cycle/your-menstrual-cycle",
+      "chunks": 17,
+      "topics": [
+        "contraception",
+        "fertility",
+        "menstrual cycle",
+        "ovulation",
+        "periods"
+      ]
+    },
+    {
+      "source": "Office on Women's Health",
+      "title": "Your Menstrual Cycle and Your Health",
+      "url": "https://womenshealth.gov/menstrual-cycle/your-menstrual-cycle-and-your-health",
+      "chunks": 14,
+      "topics": [
+        "contraception",
+        "endometriosis",
+        "fertility",
+        "health",
+        "menstrual cycle",
+        "pcos",
+        "periods",
+        "pmdd",
+        "urgent"
+      ]
+    },
+    {
+      "source": "Office on Women's Health",
+      "title": "Premenstrual Dysphoric Disorder (PMDD)",
+      "url": "https://womenshealth.gov/menstrual-cycle/premenstrual-syndrome/premenstrual-dysphoric-disorder-pmdd",
+      "chunks": 5,
+      "topics": [
+        "contraception",
+        "fertility",
+        "hormones",
+        "periods",
+        "pmdd",
+        "pms"
+      ]
+    },
+    {
+      "source": "Office on Women's Health",
+      "title": "Endometriosis",
+      "url": "https://womenshealth.gov/a-z-topics/endometriosis",
+      "chunks": 19,
+      "topics": [
+        "contraception",
+        "endometriosis",
+        "fertility",
+        "pelvic pain",
+        "periods"
+      ]
+    },
+    {
+      "source": "MedlinePlus",
+      "title": "Endometriosis",
+      "url": "https://medlineplus.gov/endometriosis.html",
+      "chunks": 10,
+      "topics": [
+        "contraception",
+        "endometriosis",
+        "fertility",
+        "pelvic pain",
+        "periods",
+        "urgent"
+      ]
+    },
+    {
+      "source": "MedlinePlus",
+      "title": "Absent Menstrual Periods - Primary",
+      "url": "https://medlineplus.gov/ency/article/001218.htm",
+      "chunks": 6,
+      "topics": [
+        "amenorrhea",
+        "contraception",
+        "fertility",
+        "infection",
+        "late period",
+        "missed period",
+        "periods"
+      ]
+    },
+    {
+      "source": "ACOG",
+      "title": "Amenorrhea: Absence of Periods",
+      "url": "https://www.acog.org/womens-health/faqs/amenorrhea-absence-of-periods",
+      "chunks": 23,
+      "topics": [
+        "amenorrhea",
+        "fertility",
+        "late period",
+        "missed period",
+        "periods"
+      ]
+    },
+    {
+      "source": "ACOG",
+      "title": "Endometriosis",
+      "url": "https://www.acog.org/womens-health/faqs/endometriosis",
+      "chunks": 18,
+      "topics": [
+        "contraception",
+        "endometriosis",
+        "fertility",
+        "pelvic pain",
+        "periods"
+      ]
+    },
+    {
+      "source": "ACOG",
+      "title": "5 Things You Need to Know About PCOS",
+      "url": "https://www.acog.org/womens-health/experts-and-stories/the-latest/5-things-you-need-to-know-about-pcos",
+      "chunks": 9,
+      "topics": [
+        "contraception",
+        "fertility",
+        "missed period",
+        "ovulation",
+        "pcos",
+        "periods"
+      ]
+    },
+    {
+      "source": "Cleveland Clinic",
+      "title": "Amenorrhea: Types, Causes, Symptoms, Diagnosis & Treatment",
+      "url": "https://my.clevelandclinic.org/health/diseases/3924-amenorrhea",
+      "chunks": 17,
+      "topics": [
+        "amenorrhea",
+        "fertility",
+        "late period",
+        "missed period",
+        "periods"
+      ]
+    },
+    {
+      "source": "Cleveland Clinic",
+      "title": "PCOS (Polycystic Ovary Syndrome): Symptoms & Treatment",
+      "url": "https://my.clevelandclinic.org/health/diseases/8316-polycystic-ovary-syndrome-pcos",
+      "chunks": 21,
+      "topics": [
+        "fertility",
+        "hormones",
+        "ovulation",
+        "pcos",
+        "periods"
+      ]
+    }
+  ]
+}
