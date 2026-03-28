@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react"
 import axios from "axios"
 import "./App.css"
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? "/api" : "http://127.0.0.1:5000")).replace(/\/+$/, "")
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || (import.meta.env.PROD ? "/api" : "http://127.0.0.1:5000/api")).replace(/\/+$/, "")
+
 
 
 const TOPICS = [

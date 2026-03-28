@@ -1267,7 +1267,7 @@ def _is_harmful(question):
     return any(term in lowered for term in HARMFUL_TERMS)
 
 
-@app.route("/ask", methods=["POST"])
+@app.route("/api/ask", methods=["POST"])
 def ask():
     request_started = time.perf_counter()
     data = request.get_json(silent=True) or {}
@@ -1406,7 +1406,7 @@ def ask():
         return jsonify({"error": str(exc)}), 500
 
 
-@app.route("/health", methods=["GET"])
+@app.route("/api/health", methods=["GET"])
 def health():
     return jsonify({"status": "ok", "rag_ready": rag_is_ready()})
 
