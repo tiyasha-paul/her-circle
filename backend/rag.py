@@ -125,9 +125,43 @@ def _collection():
     )
 
 
+import math
+
+def is_serverless():
+    return not rag_dependencies_available()
+
+def _get_hf_embedding(text):
+    import requests
+    hf_token = os.getenv("HF_API_KEY")
+    if not hf_token:
+        print("Warning: HF_API_KEY is missing!")
+        return []
+    
+    api_url = "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2"
+    headers = {"Authorization": f"Bearer {hf_token}"}
+    for attempt in range(3):
+        try:
+            response = requests.post(api_url, headers=headers, json={"inputs": [text], "options": {"wait_for_model": True}}, timeout=10)
+            if response.status_code == 200:
+                result = response.json()
+                if isinstance(result, list) and len(result) > 0:
+                    return result
+        except Exception as e:
+            print(f"HF API Error: {e}")
+    return []
+
+def cosine_similarity(v1, v2):
+    dot_product = sum(a * b for a, b in zip(v1, v2))
+    magnitude1 = math.sqrt(sum(a * a for a in v1))
+    magnitude2 = math.sqrt(sum(b * b for b in v2))
+    if magnitude1 * magnitude2 == 0:
+        return 0
+    return dot_product / (magnitude1 * magnitude2)
+
 def rag_is_ready():
-    if not rag_dependencies_available():
-        return False
+    if is_serverless():
+        json_path = RAG_DATA_DIR / "rag_vectors.json"
+        return json_path.exists()
 
     try:
         return _collection().count() > 0
@@ -438,9 +472,102 @@ def build_rag_index(queries=None, reset=False, include_live_discovery=False):
     return manifest
 
 
+def _serverless_retrieve_medical_context(query, limit=5):
+    json_path = RAG_DATA_DIR / "rag_vectors.json"
+    if not json_path.exists():
+        return []
+        
+    try:
+        with open(json_path, "r", encoding="utf-8") as f:
+            records = json.load(f)
+    except Exception as e:
+        print(f"Error loading rag_vectors.json: {e}")
+        return []
+
+    query_embedding = _get_hf_embedding(query)
+    if not query_embedding:
+        print("Failed to get HF embedding. Cannot retrieve context.")
+        return []
+        
+    query_tokens = _tokenize(query)
+    query_topics = set(_infer_topic_tags(query))
+    action_oriented = _is_action_oriented(query)
+
+    candidates = []
+    for record in records:
+        metadata = record.get("metadata", {})
+        document = record.get("document", "")
+        doc_embedding = record.get("embedding", [])
+        
+        if not doc_embedding: continue
+
+        cos_sim = cosine_similarity(query_embedding, doc_embedding)
+        distance = 1.0 - cos_sim
+        
+        url = metadata.get("url", "")
+        if not url:
+            continue
+
+        title = metadata.get("title", url)
+        section_heading = metadata.get("section_heading", "")
+        excerpt_body = document.split("\n\n", 1)[1] if "\n\n" in document else document
+        excerpt = _clean_text(excerpt_body)[:420]
+        metadata_topics = set(filter(None, (metadata.get("topics") or "").split(" | ")))
+        title_tokens = _tokenize(f"{title} {section_heading}")
+        excerpt_tokens = _tokenize(document)
+        
+        overlap_score = len(query_tokens & title_tokens) * 2.5 + len(query_tokens & excerpt_tokens) * 0.35
+        topic_score = len(query_topics & metadata_topics) * 2.0
+        action_score = 1.2 if action_oriented and _is_action_oriented(f"{title} {excerpt}") else 0
+        
+        semantic_score = max(0, 2.5 - float(distance))
+        score = overlap_score + topic_score + action_score + semantic_score
+
+        candidates.append(
+            {
+                "score": score,
+                "source": metadata.get("source", "Unknown"),
+                "title": title,
+                "url": url,
+                "excerpt": excerpt,
+                "topics": metadata.get("topics", ""),
+                "section_heading": section_heading,
+            }
+        )
+
+    candidates.sort(key=lambda item: item["score"], reverse=True)
+
+    ranked = []
+    seen_urls = set()
+    for candidate in candidates:
+        url = candidate["url"]
+        if url in seen_urls:
+            continue
+
+        seen_urls.add(url)
+        ranked.append(
+            {
+                "source": candidate["source"],
+                "title": candidate["title"],
+                "url": url,
+                "excerpt": candidate["excerpt"],
+                "topics": candidate["topics"],
+                "section_heading": candidate["section_heading"],
+            }
+        )
+
+        if len(ranked) >= limit:
+            break
+
+    return ranked
+
 def retrieve_medical_context(query, limit=5):
     if not rag_is_ready():
         return []
+
+    if is_serverless():
+        return _serverless_retrieve_medical_context(query, limit)
+
 
     try:
         results = _collection().query(
