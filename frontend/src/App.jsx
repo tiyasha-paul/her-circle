@@ -2,10 +2,17 @@ import { useEffect, useRef, useState } from "react"
 import axios from "axios"
 import "./App.css"
 
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:5000").replace(/\/+$/, "")
+
 const TOPICS = [
   {
     name: "Periods",
     sub: "Cycles, flow, cramps, delayed periods, irregular timing",
+    glow: "rgba(223, 96, 140, 0.18)",
+    line: "rgba(180, 39, 94, 0.2)",
+    glowX: "86%",
+    glowY: "14%",
+    glowSize: "11.5rem",
     questions: [
       "Why is my period late?",
       "Are blood clots during my period normal?",
@@ -22,6 +29,11 @@ const TOPICS = [
   {
     name: "PCOS and Endometriosis",
     sub: "Symptoms, warning signs, patterns, and what to look for",
+    glow: "rgba(199, 116, 76, 0.18)",
+    line: "rgba(163, 81, 44, 0.2)",
+    glowX: "14%",
+    glowY: "18%",
+    glowSize: "12rem",
     questions: [
       "What are common signs of PCOS?",
       "What are common signs of endometriosis?",
@@ -38,6 +50,11 @@ const TOPICS = [
   {
     name: "PMS and PMDD",
     sub: "Mood, fatigue, emotional shifts, and period-linked symptoms",
+    glow: "rgba(155, 106, 189, 0.16)",
+    line: "rgba(121, 72, 158, 0.18)",
+    glowX: "82%",
+    glowY: "78%",
+    glowSize: "11rem",
     questions: [
       "What is the difference between PMS and PMDD?",
       "How do I know if my symptoms are more than normal PMS?",
@@ -54,6 +71,11 @@ const TOPICS = [
   {
     name: "Birth Control",
     sub: "Pills, IUDs, side effects, missed doses, and expectations",
+    glow: "rgba(74, 146, 146, 0.16)",
+    line: "rgba(42, 114, 114, 0.18)",
+    glowX: "18%",
+    glowY: "78%",
+    glowSize: "11.5rem",
     questions: [
       "What are common birth control side effects?",
       "Is spotting normal after starting birth control?",
@@ -70,6 +92,11 @@ const TOPICS = [
   {
     name: "Ovulation and Tracking",
     sub: "Fertility signs, ovulation timing, and cycle tracking basics",
+    glow: "rgba(217, 150, 64, 0.18)",
+    line: "rgba(177, 112, 29, 0.2)",
+    glowX: "74%",
+    glowY: "24%",
+    glowSize: "11rem",
     questions: [
       "How can I track ovulation and fertility signs?",
       "What are common signs that I am ovulating?",
@@ -86,6 +113,11 @@ const TOPICS = [
   {
     name: "Common Myths",
     sub: "Debunking misinformation with grounded medical context",
+    glow: "rgba(208, 89, 125, 0.18)",
+    line: "rgba(169, 45, 93, 0.2)",
+    glowX: "16%",
+    glowY: "84%",
+    glowSize: "12rem",
     questions: [
       "Can you get pregnant during your period?",
       "Does stress really affect periods?",
@@ -108,18 +140,28 @@ const EXAMPLES = [
   "What is PMDD?",
 ]
 
-const LANDING_POINTS = [
+const LANDING_SECTIONS = [
   {
-    title: "Grounded answers",
-    text: "Medical source links stay visible so the answer feels transparent, not generic.",
+    title: "What is Her Circle?",
+    paragraphs: [
+      "Her Circle is a reproductive health companion for the questions that usually begin with uncertainty. Is this normal? Should I worry? Why is my cycle different this month? It gives people one calm place to ask about periods, hormones, fertility, contraception, pelvic pain, discharge, cycle changes, and common myths without having to open ten tabs and piece together an answer alone.",
+      "The idea behind it is simple. Health information should not feel cold, punishing, or hard to understand when you are already feeling vulnerable. It should meet you gently, explain things clearly, and help you feel a little more steady by the time you finish reading.",
+    ],
   },
   {
-    title: "Community context",
-    text: "Lived experiences help explain what other women have noticed in similar situations.",
+    title: "Why is Her Circle different?",
+    paragraphs: [
+      "A lot of health tools either sound too robotic or too vague. Her Circle tries to sit somewhere more human. It is built to feel calmer than a general chatbot and more approachable than a wall of medical text, while still staying grounded in trusted guidance.",
+      "The answer is meant to tell you the important part first, explain it in language that feels readable, and keep the sources visible so the response feels transparent instead of mysterious. When it helps, Her Circle can also bring in grounded lived-experience context, not to replace medical information, but to make the answer feel less abstract and more connected to what real people often notice or ask.",
+    ],
   },
   {
-    title: "Simple language",
-    text: "The product avoids cold clinical phrasing and keeps explanations direct and readable.",
+    title: "How Her Circle works?",
+    paragraphs: [
+      "You ask in plain language, the same way you would type into notes or text a friend. Her Circle then works through the question by identifying the topic, checking for relevant medical guidance, and shaping the response around the clearest next thing you likely need to understand.",
+      "If there is useful supporting context, it can bring that in too, but the answer stays focused on being readable and grounded. What comes back is meant to feel direct, supportive, and transparent, with visible sources so you can understand not just the answer itself, but why that answer is being given.",
+      "The whole experience is designed to make reproductive health information feel less intimidating to approach and easier to return to when you need it again.",
+    ],
   },
 ]
 
@@ -198,6 +240,23 @@ const UI_LABELS = {
 
 function makeId(prefix) {
   return globalThis.crypto?.randomUUID?.() ?? `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`
+}
+
+function sanitizeInlineCitations(text, sourceLookup = []) {
+  if (!text) return text
+
+  const sourceCount = sourceLookup.length
+  const sanitized = text.replace(/\[(\d+)\]/g, (_, rawNumber) => {
+    const citationNumber = Number(rawNumber)
+    return sourceCount > 0 && citationNumber <= sourceCount ? `[${citationNumber}]` : ""
+  })
+
+  return sanitized
+    .replace(/(?:\[\d+\]){2,}/g, (match) => [...new Set(match.match(/\[\d+\]/g) || [])].join(""))
+    .replace(/[^\S\r\n]{2,}/g, " ")
+    .replace(/\s+([,.;:!?])/g, "$1")
+    .replace(/\(\s+\)/g, "")
+    .trim()
 }
 
 function renderCitationTokens(text, keyPrefix, sourceLookup, messageId) {
@@ -307,9 +366,11 @@ function renderMarkdownBlocks(text, sourceLookup = [], messageId = "") {
 }
 
 function AnswerMarkdown({ text, onSelection, sources, messageId }) {
+  const normalizedText = sanitizeInlineCitations(text, sources)
+
   return (
     <div className="answer-text" onMouseUp={onSelection} onKeyUp={onSelection}>
-      {renderMarkdownBlocks(text, sources, messageId)}
+      {renderMarkdownBlocks(normalizedText, sources, messageId)}
     </div>
   )
 }
@@ -633,7 +694,7 @@ export default function App() {
     setMessages((current) => [...current, userMessage, assistantMessage])
 
     try {
-      const res = await axios.post("http://127.0.0.1:5000/ask", {
+      const res = await axios.post(`${API_BASE_URL}/ask`, {
         question: query,
         history,
       })
@@ -644,7 +705,7 @@ export default function App() {
             ? {
                 ...message,
                 status: "done",
-                answer: res.data.answer,
+                answer: sanitizeInlineCitations(res.data.answer, res.data.sources || []),
                 sources: res.data.sources || [],
                 reddit_experiences: res.data.reddit_experiences || [],
                 myth: res.data.myth,
@@ -829,12 +890,16 @@ export default function App() {
               </p>
             </section>
 
-            <section className="landing-panels">
-              {LANDING_POINTS.map((item) => (
-                <div key={item.title} className="landing-panel">
-                  <div className="landing-panel-title">{item.title}</div>
-                  <div className="landing-panel-text">{item.text}</div>
-                </div>
+            <section className="landing-sections">
+              {LANDING_SECTIONS.map((item) => (
+                <section key={item.title} className="landing-section">
+                  <h2>{item.title}</h2>
+                  <div className="landing-section-body">
+                    {item.paragraphs.map((paragraph) => (
+                      <p key={paragraph}>{paragraph}</p>
+                    ))}
+                  </div>
+                </section>
               ))}
             </section>
           </section>
@@ -852,9 +917,23 @@ export default function App() {
 
             <div className="topic-grid">
               {TOPICS.map((topic) => (
-                <button key={topic.name} type="button" className="topic-card" onClick={() => openTopicQuestions(topic)}>
-                  <div className="topic-name">{topic.name}</div>
-                  <div className="topic-sub">{topic.sub}</div>
+                <button
+                  key={topic.name}
+                  type="button"
+                  className="topic-card"
+                  style={{
+                    "--topic-glow": topic.glow,
+                    "--topic-line": topic.line,
+                    "--topic-glow-x": topic.glowX,
+                    "--topic-glow-y": topic.glowY,
+                    "--topic-glow-size": topic.glowSize,
+                  }}
+                  onClick={() => openTopicQuestions(topic)}
+                >
+                  <div className="topic-card-copy">
+                    <div className="topic-name">{topic.name}</div>
+                    <div className="topic-sub">{topic.sub}</div>
+                  </div>
                 </button>
               ))}
             </div>

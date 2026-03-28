@@ -1,6 +1,8 @@
 import json
 import os
 import re
+import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 
 from dotenv import load_dotenv
@@ -18,6 +20,145 @@ app = Flask(__name__)
 CORS(app)
 
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+TOPIC_CONTEXT_CACHE_TTL_SECONDS = int(os.getenv("HERCIRCLE_TOPIC_CACHE_TTL_SECONDS", "21600"))
+TOPIC_CONTEXT_CACHE = {}
+TOPIC_PREWARM_LIMIT = int(os.getenv("HERCIRCLE_TOPIC_PREWARM_LIMIT", "12"))
+TOPIC_QUESTION_BANK = [
+    "Why is my period late?",
+    "Are blood clots during my period normal?",
+    "What causes severe period cramps?",
+    "What can make periods suddenly irregular?",
+    "When should I worry about missed periods?",
+    "What are common signs of PCOS?",
+    "What are common signs of endometriosis?",
+    "How are PCOS and endometriosis different?",
+    "Can PCOS cause missed or irregular periods?",
+    "Can endometriosis cause pain outside my period?",
+    "What is the difference between PMS and PMDD?",
+    "Can PMDD cause anxiety or depression before my period?",
+    "What are the most common PMDD symptoms?",
+    "What are common birth control side effects?",
+    "Is spotting normal after starting birth control?",
+    "What should I do if I miss a birth control pill?",
+    "Can birth control affect mood?",
+    "How can I track ovulation and fertility signs?",
+    "What are common signs that I am ovulating?",
+    "When in my cycle am I most fertile?",
+    "Can you get pregnant during your period?",
+    "Does stress really affect periods?",
+    "Can birth control cause permanent infertility?",
+    "Do blood clots always mean something is wrong?",
+    "Is vaginal discharge always a sign of infection?",
+]
+TOPIC_MATCH_STOPWORDS = {
+    "what", "why", "how", "when", "can", "do", "does", "did", "is", "are", "my", "your",
+    "the", "a", "an", "of", "to", "and", "or", "it", "i", "me", "during", "after", "before",
+}
+
+
+def _elapsed_ms(start_time):
+    return round((time.perf_counter() - start_time) * 1000, 1)
+
+
+def _get_topic_cache_key(question):
+    return " ".join(question.lower().split())
+
+
+def _topic_match_tokens(question):
+    return {
+        token
+        for token in re.findall(r"[a-z0-9']+", question.lower())
+        if len(token) > 2 and token not in TOPIC_MATCH_STOPWORDS
+    }
+
+
+def _find_topic_question_match(question):
+    query_tokens = _topic_match_tokens(question)
+    if not query_tokens:
+        return None
+
+    best_question = None
+    best_score = 0
+    for candidate in TOPIC_QUESTION_BANK:
+        candidate_tokens = _topic_match_tokens(candidate)
+        if not candidate_tokens:
+            continue
+        overlap = len(query_tokens & candidate_tokens)
+        if overlap == 0:
+            continue
+        score = overlap / max(1, min(len(query_tokens), len(candidate_tokens)))
+        if score > best_score:
+            best_score = score
+            best_question = candidate
+
+    if best_question and best_score >= 0.5:
+        return best_question
+    return None
+
+
+def _read_topic_cache(question):
+    cache_key = _get_topic_cache_key(question)
+    cached = TOPIC_CONTEXT_CACHE.get(cache_key)
+    if not cached:
+        return None
+
+    if (time.time() - cached["stored_at"]) > TOPIC_CONTEXT_CACHE_TTL_SECONDS:
+        TOPIC_CONTEXT_CACHE.pop(cache_key, None)
+        return None
+
+    return cached["sources"]
+
+
+def _write_topic_cache(question, sources):
+    cache_key = _get_topic_cache_key(question)
+    TOPIC_CONTEXT_CACHE[cache_key] = {
+        "stored_at": time.time(),
+        "sources": sources,
+    }
+
+
+def _get_topic_context_sources(question):
+    matched_question = _find_topic_question_match(question)
+    if not matched_question:
+        return [], None
+
+    cached_sources = _read_topic_cache(matched_question)
+    if cached_sources is not None:
+        app.logger.info("topic_context_cache_hit=%r query=%r", matched_question, question)
+        return cached_sources, matched_question
+
+    if rag_is_ready():
+        cached_sources = retrieve_medical_context(matched_question, limit=4)
+    else:
+        cached_sources = fetch_medical_sources(matched_question)[:4]
+
+    _write_topic_cache(matched_question, cached_sources)
+    app.logger.info("topic_context_cache_fill=%r sources=%d", matched_question, len(cached_sources))
+    return cached_sources, matched_question
+
+
+def _prewarm_topic_context_cache():
+    if not rag_is_ready():
+        app.logger.info("topic_context_prewarm_skipped=rag_not_ready")
+        return
+
+    warmed = 0
+    started = time.perf_counter()
+    for topic_question in TOPIC_QUESTION_BANK[:TOPIC_PREWARM_LIMIT]:
+        if _read_topic_cache(topic_question) is not None:
+            continue
+        try:
+            sources = retrieve_medical_context(topic_question, limit=4)
+            _write_topic_cache(topic_question, sources)
+            warmed += 1
+        except Exception as exc:
+            app.logger.warning("topic_context_prewarm_failed question=%r error=%s", topic_question, exc)
+
+    app.logger.info(
+        "topic_context_prewarm_done warmed=%d total_ms=%.1f",
+        warmed,
+        _elapsed_ms(started),
+    )
 
 SYSTEM_PROMPT = """You are Her Circle, a women's reproductive health assistant.
 Your job is to give grounded, useful, human-sounding answers about periods, hormones, reproductive health, fertility, contraception, and related symptoms.
@@ -799,6 +940,32 @@ def _append_inline_citations(answer, sources):
     return "\n\n".join(cited_blocks)
 
 
+def _sanitize_inline_citations(answer, sources):
+    if not answer:
+        return answer
+
+    source_count = len(sources or [])
+
+    def replace_marker(match):
+        citation_number = int(match.group(1))
+        if source_count == 0 or citation_number > source_count:
+            return ""
+        return f"[{citation_number}]"
+
+    sanitized = re.sub(r"\[(\d+)\]", replace_marker, answer)
+    sanitized = re.sub(r"(?:\[\d+\]){2,}", lambda match: "".join(dict.fromkeys(re.findall(r"\[\d+\]", match.group(0)))), sanitized)
+    sanitized = re.sub(r"\s{2,}", " ", sanitized)
+    sanitized = re.sub(r"\s+([,.;:!?])", r"\1", sanitized)
+    sanitized = re.sub(r"\(\s+\)", "", sanitized)
+    return sanitized.strip()
+
+
+def _finalize_answer_citations(answer, sources):
+    finalized = _sanitize_inline_citations(answer, sources)
+    finalized = _append_inline_citations(finalized, sources)
+    return _sanitize_inline_citations(finalized, sources)
+
+
 def _should_replace_source_name(name, fallback_source):
     cleaned_name = (name or "").strip().lower()
     fallback_source_name = (fallback_source.get("source") or "").strip().lower()
@@ -890,10 +1057,13 @@ def _retrieve_context(retrieval_query, is_clarification_follow_up, scope_classif
         return [], []
 
     if is_clarification_follow_up:
+        topic_sources, _ = _get_topic_context_sources(retrieval_query)
         rag_sources = retrieve_medical_context(retrieval_query, limit=5) if rag_is_ready() else []
-        return rag_sources, []
+        return _merge_medical_sources(topic_sources, rag_sources, limit=6), []
 
+    topic_sources, matched_topic_question = _get_topic_context_sources(retrieval_query)
     rag_sources = retrieve_medical_context(retrieval_query, limit=5) if rag_is_ready() else []
+    rag_sources = _merge_medical_sources(topic_sources, rag_sources, limit=6)
     should_fetch_live_sources = len(rag_sources) < 3
     should_fetch_reddit = question_depth == "broad"
 
@@ -910,6 +1080,13 @@ def _retrieve_context(retrieval_query, is_clarification_follow_up, scope_classif
         live_sources = live_future.result() if live_future else []
 
     medical_sources = _merge_medical_sources(rag_sources, live_sources, limit=6)
+    if matched_topic_question and topic_sources:
+        app.logger.info(
+            "topic_context_match=%r cached_sources=%d query=%r",
+            matched_topic_question,
+            len(topic_sources),
+            retrieval_query,
+        )
     return medical_sources, reddit_posts
 
 
@@ -948,6 +1125,32 @@ def _fallback_reddit_summary(post):
     return f"In r/{subreddit}, one discussion focused on {title.lower()}."
 
 
+def _strip_inline_source_dump(answer, sources):
+    if not answer or not sources:
+        return answer
+
+    blocks = [block.strip() for block in re.split(r"\n\s*\n", answer) if block.strip()]
+    if not blocks:
+        return answer
+
+    cleaned_blocks = []
+    for block in blocks:
+        flattened = " ".join(block.split())
+        cited_markers = len(re.findall(r"\[\d+\]", flattened))
+        source_name_hits = sum(
+            1 for source in sources if (source.get("name") or "").strip() and (source.get("name") or "").lower() in flattened.lower()
+        )
+        url_hits = len(re.findall(r"https?://", flattened))
+
+        looks_like_source_dump = cited_markers >= 2 and (source_name_hits >= 2 or url_hits >= 1)
+        if looks_like_source_dump:
+            continue
+
+        cleaned_blocks.append(block)
+
+    return "\n\n".join(cleaned_blocks) if cleaned_blocks else answer
+
+
 def _normalize_response(parsed, medical_sources, reddit_posts, question_context):
     answer = parsed.get("answer", "").strip()
     normalized_reddit = _normalize_reddit_experiences(parsed.get("reddit_experiences"), reddit_posts)
@@ -973,7 +1176,8 @@ def _normalize_response(parsed, medical_sources, reddit_posts, question_context)
     )
     if question_context["wants_list_response"]:
         answer = _format_as_bullets(answer)
-    answer = _append_inline_citations(answer, normalized_sources)
+    answer = _strip_inline_source_dump(answer, normalized_sources)
+    answer = _finalize_answer_citations(answer, normalized_sources)
 
     return {
         "answer": answer,
@@ -1065,6 +1269,7 @@ def _is_harmful(question):
 
 @app.route("/ask", methods=["POST"])
 def ask():
+    request_started = time.perf_counter()
     data = request.get_json(silent=True) or {}
     question = data.get("question", "").strip()
     history = data.get("history") or []
@@ -1128,6 +1333,7 @@ def ask():
         retrieval_depth_hint = _question_depth_hint(clean_question)
         retrieval_seed = clean_question if not should_anchor_to_recent_topic else f"{recent_topic} {clean_question}".strip()
         retrieval_query = _rewrite_search_query(retrieval_seed)
+        retrieval_started = time.perf_counter()
         medical_sources, reddit_posts = _retrieve_context(
             retrieval_query,
             is_clarification_follow_up,
@@ -1135,9 +1341,12 @@ def ask():
             safety_level,
             retrieval_depth_hint,
         )
+        retrieval_ms = _elapsed_ms(retrieval_started)
         if not medical_sources and scope_classification != "clearly_out_of_scope":
+            backup_started = time.perf_counter()
             backup_sources = fetch_medical_sources(clean_question)
             medical_sources = _merge_medical_sources(medical_sources, backup_sources, limit=6)
+            app.logger.info("backup_sources_ms=%.1f question=%r", _elapsed_ms(backup_started), clean_question)
         classification_text = retrieval_query if NON_LATIN_PATTERN.search(clean_question) else clean_question
 
         preferred_language = (
@@ -1165,7 +1374,9 @@ def ask():
             f"{grounding_instructions}\n\n"
             f"Context:\n{_build_context(medical_sources, reddit_posts)}"
         )
+        llm_started = time.perf_counter()
         parsed = _request_groq_json(full_prompt)
+        llm_ms = _elapsed_ms(llm_started)
         question_context = {
             "question": clean_question,
             "preferred_language": preferred_language,
@@ -1174,8 +1385,21 @@ def ask():
             "safety_level": safety_level,
             "wants_list_response": wants_list_response,
         }
+        normalized = _normalize_response(parsed, medical_sources, reddit_posts, question_context)
+        total_ms = _elapsed_ms(request_started)
+        app.logger.info(
+            "ask_ms=%.1f retrieval_ms=%.1f llm_ms=%.1f sources=%d reddit=%d scope=%s depth=%s question=%r",
+            total_ms,
+            retrieval_ms,
+            llm_ms,
+            len(medical_sources),
+            len(reddit_posts),
+            scope_classification,
+            retrieval_depth_hint,
+            clean_question,
+        )
 
-        return jsonify(_normalize_response(parsed, medical_sources, reddit_posts, question_context))
+        return jsonify(normalized)
     except json.JSONDecodeError:
         return jsonify({"error": "Failed to parse AI response"}), 500
     except Exception as exc:
@@ -1188,4 +1412,6 @@ def health():
 
 
 if __name__ == "__main__":
+    if os.environ.get("WERKZEUG_RUN_MAIN") == "true" or not os.environ.get("WERKZEUG_RUN_MAIN"):
+        threading.Thread(target=_prewarm_topic_context_cache, daemon=True).start()
     app.run(debug=True, port=5000)

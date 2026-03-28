@@ -13,6 +13,7 @@ MAX_PER_SOURCE = 2
 MIN_QUERY_TOKEN_HITS = 1
 SCRAPE_MAX_WORKERS = 7
 EXCERPT_MAX_WORKERS = 6
+EXCERPT_CANDIDATES = 8
 
 REPRODUCTIVE_KEYWORDS = {
     "period",
@@ -310,10 +311,21 @@ def fetch_medical_sources(query):
 
     ranked_results = []
     deduped_results = _dedupe_results(results)
+    preliminary_candidates = []
 
-    with ThreadPoolExecutor(max_workers=min(EXCERPT_MAX_WORKERS, max(1, len(deduped_results)))) as executor:
+    for item in deduped_results:
+        item["excerpt"] = ""
+        if _query_token_hits(item, query) < MIN_QUERY_TOKEN_HITS and not _is_reproductive_result(item["title"], item["url"]):
+            continue
+        item["score"] = _score_result(item, query)
+        preliminary_candidates.append(item)
+
+    preliminary_candidates.sort(key=lambda item: item["score"], reverse=True)
+    excerpt_candidates = preliminary_candidates[:EXCERPT_CANDIDATES]
+
+    with ThreadPoolExecutor(max_workers=min(EXCERPT_MAX_WORKERS, max(1, len(excerpt_candidates)))) as executor:
         excerpt_futures = {
-            executor.submit(_fetch_excerpt, item["url"]): item for item in deduped_results
+            executor.submit(_fetch_excerpt, item["url"]): item for item in excerpt_candidates
         }
 
         for future in as_completed(excerpt_futures):
@@ -324,9 +336,7 @@ def fetch_medical_sources(query):
                 print(f"Excerpt fetch error for {item['url']}: {exc}")
                 item["excerpt"] = ""
 
-    for item in deduped_results:
-        if _query_token_hits(item, query) < MIN_QUERY_TOKEN_HITS and not _is_reproductive_result(item["title"], item["url"]):
-            continue
+    for item in preliminary_candidates:
         item["score"] = _score_result(item, query)
         ranked_results.append(item)
 
