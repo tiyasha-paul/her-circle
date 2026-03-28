@@ -565,7 +565,59 @@ function clearBrowserSelection() {
   selection?.removeAllRanges()
 }
 
+function Reveal({ children, className = "" }) {
+  const ref = useRef(null)
+  const [isVisible, setIsVisible] = useState(false)
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true)
+          observer.unobserve(entry.target)
+        }
+      },
+      { threshold: 0.12 },
+    )
+
+    if (ref.current) {
+      observer.observe(ref.current)
+    }
+
+    return () => observer.disconnect()
+  }, [])
+
+  return (
+    <div ref={ref} className={`${className} reveal ${isVisible ? "visible" : ""}`}>
+      {children}
+    </div>
+  )
+}
+
+function CursorGlow() {
+  const [position, setPosition] = useState({ x: -1000, y: -1000 })
+
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      setPosition({ x: e.clientX, y: e.clientY })
+    }
+    window.addEventListener("mousemove", handleMouseMove)
+    return () => window.removeEventListener("mousemove", handleMouseMove)
+  }, [])
+
+  return (
+    <div
+      className="cursor-glow"
+      style={{
+        transform: `translate(calc(${position.x}px - 50%), calc(${position.y}px - 50%))`,
+      }}
+    />
+  )
+}
+
 export default function App() {
+
+
   const [question, setQuestion] = useState("")
   const [messages, setMessages] = useState([])
   const [loading, setLoading] = useState(false)
@@ -827,7 +879,9 @@ export default function App() {
 
   return (
     <div className="app-shell">
+      {view === "landing" && <CursorGlow />}
       <div className="page-glow page-glow-left" />
+
       <div className="page-glow page-glow-right" />
 
       <header className="header">
@@ -883,22 +937,43 @@ export default function App() {
         {view === "landing" && (
           <section className="landing-layout">
             <section className="landing-hero">
-              <h1>One place to understand what your body may be trying to tell you.</h1>
-              <p className="landing-copy">
-                Ask about periods, hormones, fertility, contraception, pelvic pain, and common myths
-                in a space that feels calmer, clearer, and more grounded than a general web search.
-              </p>
+
+              <Reveal>
+                <h1>One place to understand what your body may be trying to tell you.</h1>
+              </Reveal>
+              <Reveal>
+                <p className="landing-copy">
+                  Ask about periods, hormones, fertility, contraception, pelvic pain, and common myths
+                  in a space that feels calmer, clearer, and more grounded than a general web search.
+                </p>
+              </Reveal>
             </section>
 
             <section className="landing-sections">
-              {LANDING_SECTIONS.map((item) => (
+              {LANDING_SECTIONS.map((item, idx) => (
                 <section key={item.title} className="landing-section">
-                  <h2>{item.title}</h2>
-                  <div className="landing-section-body">
-                    {item.paragraphs.map((paragraph) => (
-                      <p key={paragraph}>{paragraph}</p>
-                    ))}
-                  </div>
+                  <Reveal>
+                    <div
+                      className="page-glow"
+                      style={{
+                        width: "22rem",
+                        height: "22rem",
+                        top: "50%",
+                        left: idx % 2 === 0 ? "-12rem" : "auto",
+                        right: idx % 2 === 0 ? "auto" : "-12rem",
+                        background: idx % 2 === 0 ? "rgba(255, 190, 214, 0.4)" : "rgba(255, 230, 205, 0.3)",
+                        transform: "translateY(-50%)",
+                        animation: idx % 2 === 0 ? "float-slow 20s infinite" : "float-medium 25s infinite",
+                        zIndex: -1,
+                      }}
+                    />
+                    <h2>{item.title}</h2>
+                    <div className="landing-section-body">
+                      {item.paragraphs.map((paragraph) => (
+                        <p key={paragraph}>{paragraph}</p>
+                      ))}
+                    </div>
+                  </Reveal>
                 </section>
               ))}
             </section>
@@ -907,38 +982,41 @@ export default function App() {
 
         {view === "topics" && (
           <section className="topics-page">
-            <div className="page-intro">
+            <Reveal className="page-intro">
               <h2>Browse the questions people most often start with.</h2>
               <p>
                 Choose a topic to open a set of common starter questions, then pick the one you want
                 to ask in chat.
               </p>
-            </div>
+            </Reveal>
 
             <div className="topic-grid">
-              {TOPICS.map((topic) => (
-                <button
-                  key={topic.name}
-                  type="button"
-                  className="topic-card"
-                  style={{
-                    "--topic-glow": topic.glow,
-                    "--topic-line": topic.line,
-                    "--topic-glow-x": topic.glowX,
-                    "--topic-glow-y": topic.glowY,
-                    "--topic-glow-size": topic.glowSize,
-                  }}
-                  onClick={() => openTopicQuestions(topic)}
-                >
-                  <div className="topic-card-copy">
-                    <div className="topic-name">{topic.name}</div>
-                    <div className="topic-sub">{topic.sub}</div>
-                  </div>
-                </button>
+              {TOPICS.map((topic, idx) => (
+                <Reveal key={topic.name}>
+                  <button
+                    type="button"
+                    className="topic-card"
+                    style={{
+                      "--topic-glow": topic.glow,
+                      "--topic-line": topic.line,
+                      "--topic-glow-x": topic.glowX,
+                      "--topic-glow-y": topic.glowY,
+                      "--topic-glow-size": topic.glowSize,
+                      animationDelay: `${idx * 0.08}s`,
+                    }}
+                    onClick={() => openTopicQuestions(topic)}
+                  >
+                    <div className="topic-card-copy">
+                      <div className="topic-name">{topic.name}</div>
+                      <div className="topic-sub">{topic.sub}</div>
+                    </div>
+                  </button>
+                </Reveal>
               ))}
             </div>
           </section>
         )}
+
 
         {view === "chat" && (
           <section className="chat-layout">
