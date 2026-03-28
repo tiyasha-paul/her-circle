@@ -137,7 +137,7 @@ def _get_hf_embedding(text):
         print("Warning: HF_API_KEY is missing!")
         return []
     
-    api_url = "https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/all-MiniLM-L6-v2"
+    api_url = "https://router.huggingface.co/hf-inference/models/sentence-transformers/all-MiniLM-L6-v2/pipeline/feature-extraction"
     headers = {"Authorization": f"Bearer {hf_token}"}
     for attempt in range(3):
         try:
@@ -145,7 +145,11 @@ def _get_hf_embedding(text):
             if response.status_code == 200:
                 result = response.json()
                 if isinstance(result, list) and len(result) > 0:
+                    if isinstance(result[0], list):
+                        return result[0]
                     return result
+            else:
+                print(f"HF API non-200 status: {response.status_code} - {response.text}")
         except Exception as e:
             print(f"HF API Error: {e}")
     return []

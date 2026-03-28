@@ -208,6 +208,8 @@ Rules:
 - Only include medical sources you actually used, and use as many or as few as the answer genuinely needs
 - If multiple good sources are available, prefer a mix of organizations instead of listing the same source repeatedly
 - Use inline citation markers in the answer when medical claims are supported, using the same numbering as the "sources" array, for example [1] or [1][2]
+- NEVER append a bibliography, reference list, or list of URLs at the end of the "answer". Just use inline markers like [1]. The user interface will display the sources for you.
+- When writing a bulleted list, you MUST place a completely blank line (double newline) before the first bullet and after the last bullet to allow proper rendering.
 - Keep citation markers brief and only use them for medical-source support, not for Reddit context
 - If Reddit experiences are relevant, weave a brief lived-experience synthesis directly into the answer in plain language
 - Summarize Reddit experiences only when they add real value; if not, return an empty array
