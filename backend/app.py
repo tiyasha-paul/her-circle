@@ -885,7 +885,7 @@ def _merge_medical_sources(primary_sources, fallback_sources, limit=6):
     return merged
 
 
-def _retrieve_context(retrieval_query, is_clarification_follow_up, scope_classification, safety_level):
+def _retrieve_context(retrieval_query, is_clarification_follow_up, scope_classification, safety_level, question_depth):
     if scope_classification in {"clearly_out_of_scope", "smalltalk"}:
         return [], []
 
@@ -895,6 +895,7 @@ def _retrieve_context(retrieval_query, is_clarification_follow_up, scope_classif
 
     rag_sources = retrieve_medical_context(retrieval_query, limit=5) if rag_is_ready() else []
     should_fetch_live_sources = len(rag_sources) < 3
+    should_fetch_reddit = question_depth == "broad"
 
     if safety_level in {"urgent", "emergency"}:
         live_sources = fetch_medical_sources(retrieval_query) if should_fetch_live_sources else []
@@ -902,10 +903,10 @@ def _retrieve_context(retrieval_query, is_clarification_follow_up, scope_classif
         return medical_sources, []
 
     with ThreadPoolExecutor(max_workers=2) as executor:
-        reddit_future = executor.submit(fetch_reddit_posts, retrieval_query, 5)
+        reddit_future = executor.submit(fetch_reddit_posts, retrieval_query, 4) if should_fetch_reddit else None
         live_future = executor.submit(fetch_medical_sources, retrieval_query) if should_fetch_live_sources else None
 
-        reddit_posts = reddit_future.result()
+        reddit_posts = reddit_future.result() if reddit_future else []
         live_sources = live_future.result() if live_future else []
 
     medical_sources = _merge_medical_sources(rag_sources, live_sources, limit=6)
@@ -1124,6 +1125,7 @@ def ask():
             is_clarification_follow_up
             or scope_classification == "likely_in_scope_follow_up"
         )
+        retrieval_depth_hint = _question_depth_hint(clean_question)
         retrieval_seed = clean_question if not should_anchor_to_recent_topic else f"{recent_topic} {clean_question}".strip()
         retrieval_query = _rewrite_search_query(retrieval_seed)
         medical_sources, reddit_posts = _retrieve_context(
@@ -1131,6 +1133,7 @@ def ask():
             is_clarification_follow_up,
             scope_classification,
             safety_level,
+            retrieval_depth_hint,
         )
         if not medical_sources and scope_classification != "clearly_out_of_scope":
             backup_sources = fetch_medical_sources(clean_question)

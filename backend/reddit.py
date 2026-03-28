@@ -1,10 +1,14 @@
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from urllib.parse import quote_plus
 
 import requests
 
 HEADERS = {"User-Agent": "HerCircle/1.0"}
-TIMEOUTS = (8, 12, 16)
-POSTS_PER_SUBREDDIT = 4
+TIMEOUTS = (4, 6)
+POSTS_PER_SUBREDDIT = 3
+MAX_SUBREDDITS = 6
+MAX_QUERY_VARIANTS = 2
+REQUEST_WORKERS = 6
 
 GENERAL_SUBREDDITS = [
     "WomensHealth",
@@ -62,11 +66,15 @@ def _tokenize(value):
 
 def _select_subreddits(query):
     lowered = query.lower()
-    selected = list(GENERAL_SUBREDDITS)
-
+    topic_specific = []
     for keyword, subreddit_list in TOPIC_SUBREDDITS.items():
         if keyword in lowered:
-            selected.extend(subreddit_list)
+            topic_specific.extend(subreddit_list)
+
+    if topic_specific:
+        selected = topic_specific + GENERAL_SUBREDDITS[:4]
+    else:
+        selected = GENERAL_SUBREDDITS[:MAX_SUBREDDITS]
 
     unique = []
     seen = set()
@@ -76,6 +84,8 @@ def _select_subreddits(query):
             continue
         seen.add(normalized)
         unique.append(subreddit)
+        if len(unique) >= MAX_SUBREDDITS:
+            break
     return unique
 
 
@@ -109,7 +119,7 @@ def _build_query_variants(query):
         if focused_query not in variants:
             variants.append(focused_query)
 
-    return variants[:3]
+    return variants[:MAX_QUERY_VARIANTS]
 
 
 def _fetch_subreddit_results(subreddit, query):
@@ -212,10 +222,18 @@ def fetch_reddit_posts(query, limit=6):
     subreddits = _select_subreddits(query)
     variants = _build_query_variants(query)
 
-    for subreddit in subreddits:
-        for variant in variants:
+    jobs = [(subreddit, variant) for subreddit in subreddits for variant in variants]
+
+    with ThreadPoolExecutor(max_workers=min(REQUEST_WORKERS, max(1, len(jobs)))) as executor:
+        future_map = {
+            executor.submit(_fetch_subreddit_results, subreddit, variant): (subreddit, variant)
+            for subreddit, variant in jobs
+        }
+
+        for future in as_completed(future_map):
+            subreddit, variant = future_map[future]
             try:
-                data = _fetch_subreddit_results(subreddit, variant)
+                data = future.result()
                 posts = data.get("data", {}).get("children", [])
 
                 for post in posts:

@@ -4,40 +4,100 @@ import "./App.css"
 
 const TOPICS = [
   {
-    label: "Cycle Health",
     name: "Periods",
     sub: "Cycles, flow, cramps, delayed periods, irregular timing",
-    prompt: "Tell me about periods and common cycle changes.",
+    questions: [
+      "Why is my period late?",
+      "Are blood clots during my period normal?",
+      "What causes severe period cramps?",
+      "Why did my period come early this month?",
+      "What can make periods suddenly irregular?",
+      "How much bleeding is considered heavy?",
+      "Is spotting between periods normal?",
+      "Can stress delay my period?",
+      "Why is my period lasting longer than usual?",
+      "When should I worry about missed periods?",
+    ],
   },
   {
-    label: "Conditions",
     name: "PCOS and Endometriosis",
     sub: "Symptoms, warning signs, patterns, and what to look for",
-    prompt: "Tell me about signs of PCOS and endometriosis.",
+    questions: [
+      "What are common signs of PCOS?",
+      "What are common signs of endometriosis?",
+      "How are PCOS and endometriosis different?",
+      "Can PCOS cause missed or irregular periods?",
+      "Can endometriosis cause pain outside my period?",
+      "What symptoms make doctors suspect PCOS?",
+      "What symptoms make doctors suspect endometriosis?",
+      "Can you have both PCOS and endometriosis?",
+      "When should I get checked for PCOS?",
+      "When should I get checked for endometriosis?",
+    ],
   },
   {
-    label: "Hormones",
     name: "PMS and PMDD",
     sub: "Mood, fatigue, emotional shifts, and period-linked symptoms",
-    prompt: "What is the difference between PMS and PMDD?",
+    questions: [
+      "What is the difference between PMS and PMDD?",
+      "How do I know if my symptoms are more than normal PMS?",
+      "Can PMDD cause anxiety or depression before my period?",
+      "When do PMS symptoms usually start and end?",
+      "What are the most common PMDD symptoms?",
+      "Why do I feel exhausted before my period?",
+      "Can hormones make mood swings worse before a period?",
+      "What helps with PMS bloating and fatigue?",
+      "When should I talk to a doctor about PMS or PMDD?",
+      "Can PMDD get worse over time?",
+    ],
   },
   {
-    label: "Contraception",
     name: "Birth Control",
     sub: "Pills, IUDs, side effects, missed doses, and expectations",
-    prompt: "Tell me about common birth control side effects.",
+    questions: [
+      "What are common birth control side effects?",
+      "Is spotting normal after starting birth control?",
+      "What should I do if I miss a birth control pill?",
+      "How long does it take for pill side effects to settle?",
+      "Can birth control make my period lighter or disappear?",
+      "Can an IUD cause cramping or irregular bleeding?",
+      "When should I worry about birth control side effects?",
+      "Can birth control affect mood?",
+      "What bleeding changes are normal with an implant?",
+      "How do I know if my birth control is not suiting me?",
+    ],
   },
   {
-    label: "Fertility",
     name: "Ovulation and Tracking",
     sub: "Fertility signs, ovulation timing, and cycle tracking basics",
-    prompt: "How can I track ovulation and fertility signs?",
+    questions: [
+      "How can I track ovulation and fertility signs?",
+      "What are common signs that I am ovulating?",
+      "When in my cycle am I most fertile?",
+      "How reliable is cervical mucus for tracking ovulation?",
+      "Can irregular periods make ovulation harder to predict?",
+      "Do ovulation tests always work accurately?",
+      "What does basal body temperature actually tell me?",
+      "Can I ovulate without obvious symptoms?",
+      "How many days before ovulation can I get pregnant?",
+      "When should I seek help for fertility concerns?",
+    ],
   },
   {
-    label: "Clarity",
     name: "Common Myths",
     sub: "Debunking misinformation with grounded medical context",
-    prompt: "What are some common myths about periods and reproductive health?",
+    questions: [
+      "Can you get pregnant during your period?",
+      "Does stress really affect periods?",
+      "Can birth control cause permanent infertility?",
+      "Do blood clots always mean something is wrong?",
+      "Is severe period pain just something to put up with?",
+      "Can PCOS happen even if I am not overweight?",
+      "Does a regular period always mean I am ovulating?",
+      "Can you still get pregnant if your periods are irregular?",
+      "Is vaginal discharge always a sign of infection?",
+      "What are some common myths about periods and reproductive health?",
+    ],
   },
 ]
 
@@ -449,6 +509,7 @@ export default function App() {
   const [messages, setMessages] = useState([])
   const [loading, setLoading] = useState(false)
   const [view, setView] = useState("landing")
+  const [activeTopic, setActiveTopic] = useState(null)
   const [selectedExcerpt, setSelectedExcerpt] = useState("")
   const [copiedMessageId, setCopiedMessageId] = useState(null)
   const [shareStatus, setShareStatus] = useState("")
@@ -487,12 +548,33 @@ export default function App() {
     window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" })
   }, [messages, loading, view])
 
+  useEffect(() => {
+    if (!activeTopic) return undefined
+
+    const previousOverflow = document.body.style.overflow
+    const handleEscape = (event) => {
+      if (event.key === "Escape") {
+        setActiveTopic(null)
+      }
+    }
+
+    document.body.style.overflow = "hidden"
+    window.addEventListener("keydown", handleEscape)
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener("keydown", handleEscape)
+    }
+  }, [activeTopic])
+
   const openLanding = () => {
+    setActiveTopic(null)
     setView("landing")
     setLoading(false)
   }
 
   const openChat = (prefill = "") => {
+    setActiveTopic(null)
     setView("chat")
     if (prefill) {
       setQuestion(prefill)
@@ -500,11 +582,13 @@ export default function App() {
   }
 
   const openTopics = () => {
+    setActiveTopic(null)
     setView("topics")
     setLoading(false)
   }
 
   const startNewChat = () => {
+    setActiveTopic(null)
     setMessages([])
     setQuestion("")
     setSelectedExcerpt("")
@@ -588,6 +672,20 @@ export default function App() {
   }
 
   const startTopic = (prompt) => {
+    setView("chat")
+    ask(prompt)
+  }
+
+  const openTopicQuestions = (topic) => {
+    setActiveTopic(topic)
+  }
+
+  const closeTopicQuestions = () => {
+    setActiveTopic(null)
+  }
+
+  const chooseTopicQuestion = (prompt) => {
+    setActiveTopic(null)
     setView("chat")
     ask(prompt)
   }
@@ -745,18 +843,16 @@ export default function App() {
         {view === "topics" && (
           <section className="topics-page">
             <div className="page-intro">
-              <div className="section-kicker">Common Topics</div>
               <h2>Browse the questions people most often start with.</h2>
               <p>
-                Choose a topic to jump into the chat interface with a ready starting point, then ask
-                follow-up questions naturally.
+                Choose a topic to open a set of common starter questions, then pick the one you want
+                to ask in chat.
               </p>
             </div>
 
             <div className="topic-grid">
               {TOPICS.map((topic) => (
-                <button key={topic.name} type="button" className="topic-card" onClick={() => startTopic(topic.prompt)}>
-                  <div className="topic-tag">{topic.label}</div>
+                <button key={topic.name} type="button" className="topic-card" onClick={() => openTopicQuestions(topic)}>
                   <div className="topic-name">{topic.name}</div>
                   <div className="topic-sub">{topic.sub}</div>
                 </button>
@@ -976,6 +1072,48 @@ export default function App() {
           </section>
         )}
       </main>
+
+      {activeTopic && (
+        <div className="topic-modal-backdrop" onClick={closeTopicQuestions}>
+          <div
+            className="topic-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="topic-modal-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="topic-modal-header">
+              <div>
+                <h3 id="topic-modal-title">{activeTopic.name}</h3>
+                <p>{activeTopic.sub}</p>
+              </div>
+              <button
+                type="button"
+                className="topic-modal-close"
+                onClick={closeTopicQuestions}
+                aria-label="Close topic questions"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="topic-modal-body">
+              <div className="topic-question-list">
+                {activeTopic.questions.map((questionText) => (
+                  <button
+                    key={questionText}
+                    type="button"
+                    className="topic-question-btn"
+                    onClick={() => chooseTopicQuestion(questionText)}
+                  >
+                    {questionText}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

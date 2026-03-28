@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from html import unescape
 from urllib.parse import parse_qs, quote_plus, unquote, urlparse
 
@@ -5,11 +6,13 @@ import requests
 from bs4 import BeautifulSoup
 
 HEADERS = {"User-Agent": "HerCircle/1.0"}
-SEARCH_TIMEOUT = 12
-EXCERPT_TIMEOUT = 10
+SEARCH_TIMEOUT = 8
+EXCERPT_TIMEOUT = 6
 MAX_RESULTS = 7
 MAX_PER_SOURCE = 2
 MIN_QUERY_TOKEN_HITS = 1
+SCRAPE_MAX_WORKERS = 7
+EXCERPT_MAX_WORKERS = 6
 
 REPRODUCTIVE_KEYWORDS = {
     "period",
@@ -282,15 +285,46 @@ def scrape_duckduckgo_source(query, source_config):
 
 def fetch_medical_sources(query):
     results = []
-    results.extend(scrape_nhs(query))
-    results.extend(scrape_mayo(query))
+    scrape_jobs = [
+        ("nhs", None),
+        ("mayo", None),
+        *[("duckduckgo", source_config) for source_config in DUCKDUCKGO_SOURCES],
+    ]
 
-    for source_config in DUCKDUCKGO_SOURCES:
-        results.extend(scrape_duckduckgo_source(query, source_config))
+    with ThreadPoolExecutor(max_workers=min(SCRAPE_MAX_WORKERS, len(scrape_jobs))) as executor:
+        future_map = {}
+        for job_name, source_config in scrape_jobs:
+            if job_name == "nhs":
+                future = executor.submit(scrape_nhs, query)
+            elif job_name == "mayo":
+                future = executor.submit(scrape_mayo, query)
+            else:
+                future = executor.submit(scrape_duckduckgo_source, query, source_config)
+            future_map[future] = job_name
+
+        for future in as_completed(future_map):
+            try:
+                results.extend(future.result() or [])
+            except Exception as exc:
+                print(f"Source scrape error ({future_map[future]}): {exc}")
 
     ranked_results = []
-    for item in _dedupe_results(results):
-        item["excerpt"] = _fetch_excerpt(item["url"])
+    deduped_results = _dedupe_results(results)
+
+    with ThreadPoolExecutor(max_workers=min(EXCERPT_MAX_WORKERS, max(1, len(deduped_results)))) as executor:
+        excerpt_futures = {
+            executor.submit(_fetch_excerpt, item["url"]): item for item in deduped_results
+        }
+
+        for future in as_completed(excerpt_futures):
+            item = excerpt_futures[future]
+            try:
+                item["excerpt"] = future.result() or ""
+            except Exception as exc:
+                print(f"Excerpt fetch error for {item['url']}: {exc}")
+                item["excerpt"] = ""
+
+    for item in deduped_results:
         if _query_token_hits(item, query) < MIN_QUERY_TOKEN_HITS and not _is_reproductive_result(item["title"], item["url"]):
             continue
         item["score"] = _score_result(item, query)
