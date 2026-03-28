@@ -27,6 +27,68 @@ Her Circle is a dedicated women's reproductive health assistant designed to prov
 
 ---
 
+## Architecture
+
+The following flowchart illustrates the architecture and data flow of Her Circle:
+
+```mermaid
+flowchart TD
+    %% Styling
+    classDef frontend fill:#E8D8E3,stroke:#A3512C,stroke-width:2px,color:#333
+    classDef backend fill:#F4EBF1,stroke:#A92D5D,stroke-width:2px,color:#333
+    classDef database fill:#EBEBEB,stroke:#555,stroke-width:2px,color:#333
+    classDef external fill:#D1E5F0,stroke:#2C668A,stroke-width:2px,color:#333
+
+    %% Nodes
+    User([User])
+    
+    subgraph Client ["Frontend (Vercel Edge)"]
+        React[React + Vite Web App]:::frontend
+    end
+    
+    subgraph Serverless ["Backend (Vercel Serverless)"]
+        Flask[Python Flask API <br> api/index.py]:::backend
+        RAG[RAG Retrieval Engine <br> Pure Python Math]:::backend
+        RedditScraper[Reddit Content Scraper]:::backend
+        
+        %% Static Vector Store
+        JSONDB[(rag_vectors.json <br> 1.5MB Static DB)]:::database
+    end
+    
+    subgraph External_APIs ["External LLM & APIS"]
+        Groq[Groq API <br> Llama 3 8B]:::external
+        HF[Hugging Face Inference API <br> Sentence Transformers]:::external
+        Reddit[Reddit API <br> Lived Experiences]:::external
+    end
+
+    %% Flow
+    User -- "Plain language question" --> React
+    React -- "POST /api/ask" --> Flask
+    
+    %% Backend Orchestration
+    Flask -- "1. Fetch relevant threads" --> RedditScraper
+    RedditScraper -.-> Reddit
+    
+    Flask -- "2. Pass query string" --> RAG
+    RAG -- "Generate Embeddings" --> HF
+    HF -. "Return 384D Vector" .-> RAG
+    
+    %% Vector Search
+    RAG -- "Cosine Similarity Search" --> JSONDB
+    JSONDB -. "Return Top Medical Sources" .-> RAG
+    RAG -.-> Flask
+    
+    %% LLM Generation
+    Flask -- "3. Medical Context <br>+ Reddit Data <br>+ System Prompt" --> Groq
+    Groq -. "Return Structured JSON" .-> Flask
+    
+    %% Return to User
+    Flask -- "Return Formatted Answer" --> React
+    React -- "Renders Markdown UI" --> User
+```
+
+---
+
 ## Getting Started
 
 ### Prerequisites
