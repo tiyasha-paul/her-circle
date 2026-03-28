@@ -81,7 +81,17 @@ Her Circle is a dedicated women's reproductive health assistant designed to prov
    ```
 4. Open the application at `http://localhost:5173`.
 
+## Future Plans / Roadmap
 
+We are constantly looking to expand and improve **Her Circle** to make it the most helpful companion possible. Planned features include:
+
+- **Account Profiles & Cycle Tracking**: Allowing users to log their periods and symptoms securely, enabling the AI to provide answers that are highly personalized to their current menstrual phase.
+- **Expanded Medical Scope**: Broadening our curated RAG database to cover deeper topics such as menopause, pregnancy, postpartum mental health, and fertility treatments (like IVF).
+- **Multimodal Inputs**: Allowing users to upload pictures of ovulation tests or tracking charts for a more interactive analysis experience.
+- **Video Integrations**: Surfacing highly relevant YouTube videos from trusted medical creators and educators for users who learn better visually.
+- **Community "Verified" Sharing**: An opt-in feature allowing users to anonymously share particularly helpful AI Q&A threads and their own experiences with the broader Her Circle community.
+
+---
 
 ## Project Structure
 
