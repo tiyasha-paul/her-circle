@@ -1412,6 +1412,6 @@ def health():
 
 
 if __name__ == "__main__":
-    if os.environ.get("WERKZEUG_RUN_MAIN") == "true" or not os.environ.get("WERKZEUG_RUN_MAIN"):
-        threading.Thread(target=_prewarm_topic_context_cache, daemon=True).start()
+    threading.Thread(target=_prewarm_topic_context_cache, daemon=True).start()
     app.run(debug=True, port=5000)
+

@@ -1,6 +1,15 @@
+# Backend
 backend/.env
 backend/venv/
 backend/__pycache__/
-backend/data/chroma/
 backend/data/page_cache/
+
+# Frontend
 frontend/node_modules/
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
